@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+
+# VS Code
+.vscode/
+
+# Data
+data/raw/*
+data/processed/*
+
+# Exceptions
+!data/raw/.gitkeep
+!data/processed/.gitkeep
