@@ -52,7 +52,7 @@ def inserer_document(doc: dict) -> bool:
 def get_pending(limite: int = 20):
     with get_session() as s:
         return s.execute(text("""
-            SELECT id, texte_nettoye, source, titre
+            SELECT id, texte_nettoye, source, titre, type_document
             FROM documents
             WHERE statut_nlp = 'pending'
             AND texte_nettoye IS NOT NULL

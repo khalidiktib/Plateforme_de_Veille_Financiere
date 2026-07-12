@@ -3,6 +3,9 @@ import requests
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Fixer le warning SSL 
+
 
 BASE_MEDIA_URL = "https://media.casablanca-bourse.com/sites/default/files"
 

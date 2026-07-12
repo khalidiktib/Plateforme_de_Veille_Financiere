@@ -12,5 +12,7 @@ plotly==5.20.0
 python-dotenv==1.0.0
 langdetect==1.0.9
 
+google-generativeai
+
 anthropic==0.25.0
 lxml==5.2.2
