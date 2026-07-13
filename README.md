@@ -91,7 +91,7 @@ La clé reste sur votre machine — ne jamais la committer sur GitHub.
 ├── extractors/                # Extraction de texte (PDF, HTML) ✅
 ├── cleaners/                  # Nettoyage et déduplication ✅
 ├── storage/                   # Connexion PostgreSQL et requêtes ✅
-├── nlp/                       # Résumé automatique via Groq/Gemini ✅
+├── nlp/                       # Résumé automatique + classification (risque/opportunité/neutre) via Groq/Gemini ✅
 ├── dashboard/                 # Interface Streamlit ✅
 ├── database/                  # Schéma SQL ✅
 ├── config/                    # Paramètres globaux
@@ -111,6 +111,9 @@ python -m collectors.bourse.bourse_pipeline
 
 # Lancer le NLP sur les documents en attente
 python -c "from nlp.run_nlp import run_nlp_pipeline; run_nlp_pipeline(limite=50)"
+
+# Lancer la classification (risque / opportunité / neutre)
+python -m nlp.run_classifier
 
 # Lancer le dashboard
 python -m streamlit run dashboard/app.py
@@ -144,6 +147,8 @@ Table principale `documents` :
 | texte_nettoye | TEXT | Texte extrait et nettoyé |
 | hash | VARCHAR | Empreinte pour déduplication |
 | resume | TEXT | Résumé généré par l'IA |
+| classification | VARCHAR | RISQUE / OPPORTUNITE / NEUTRE |
+| score_risque | INTEGER | 1 (faible) / 2 (modéré) / 3 (élevé) |
 | statut_nlp | VARCHAR | pending / done / error |
 | date_collecte | TIMESTAMP | Date d'insertion en base |
 | metadata | JSONB | Données spécifiques à la source |
@@ -197,7 +202,8 @@ dans votre pipeline. Il suffit d'insérer avec `statut_nlp='pending'`
 |---|---|---|
 | Infrastructure PostgreSQL | ✅ Fait | Khalid |
 | Pipeline Bourse de Casablanca | ✅ Fait | Khalid |
-| Module NLP (résumé automatique) | ✅ Fait | Khalid |
-| Dashboard Streamlit | ✅ En cours | Khalid |
+| Module NLP — résumé automatique | ✅ Fait | Khalid |
+| Module NLP — classification (risque/opportunité) | ✅ Fait | Khalid |
+| Dashboard — KPIs + alertes + score du jour | ✅ Fait | Khalid |
 | Pipeline BAM | 🔄 En cours | Fatima |
 | Pipeline AMMC | 🔄 En cours | Houda |
