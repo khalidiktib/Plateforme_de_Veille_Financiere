@@ -26,10 +26,28 @@ def run_nlp_pipeline(limite: int = 50):
             marquer_resume(doc.id, resume)
             print("✓")
             succes += 1
-            time.sleep(0.3)
+            time.sleep(2)
         except Exception as e:
-            print(f"✗ ({e})")
-            erreurs += 1
+            err = str(e)
+            # Si rate limit → attendre et réessayer une fois
+            if "429" in err and "retry" in err.lower():
+                print(f"⏳ Rate limit — pause 60s...")
+                time.sleep(60)
+                try:
+                    resume = resumer_document(
+                        doc.texte_nettoye,
+                        doc.source,
+                        doc.type_document
+                    )
+                    marquer_resume(doc.id, resume)
+                    print(f"✓ (après retry)")
+                    succes += 1
+                except:
+                    print(f"✗ (échec retry)")
+                    erreurs += 1
+            else:
+                print(f"✗ ({e})")
+                erreurs += 1
 
     print(f"\n→ {succes} résumés générés | {erreurs} erreurs")
 
