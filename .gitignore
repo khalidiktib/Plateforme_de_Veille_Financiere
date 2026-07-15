@@ -19,3 +19,11 @@ data/processed/*
 # Exceptions
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# Exports temporaires
+export_*.sql
+export_*.csv
+
+# Logs
+logs/
+*.log
