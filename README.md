@@ -9,6 +9,8 @@ marocaines — Bank Al-Maghrib, AMMC, Bourse de Casablanca.
 
 ## Installation
 
+## Installation
+
 **1. Cloner le projet**
 ```bash
 git clone https://github.com/khalidiktib/Plateforme_de_Veille_Financiere.git
@@ -30,13 +32,22 @@ pip install -r requirements.txt
 
 **3. Variables d'environnement**
 ```bash
-# Copier le fichier exemple et remplir les valeurs
 cp .env.example .env
 ```
+Remplir `DATABASE_URL` avec l'URL Supabase (demander à Khalid) et `LLM_API_KEY` 
+avec votre propre clé Groq gratuite.
 
-Ouvrir `.env` et remplir :
-POSTGRES_PASSWORD=finintel123
-LLM_API_KEY=        # votre clé Groq (voir section Clé API)
+**4. Tester l'installation**
+```bash
+python -m tests.test_infra
+```
+
+Résultat attendu :
+✓ Connecté : PostgreSQL 16...
+✓ Nettoyage : ...
+✓ Hash : ...
+✓ Langue détectée : fr
+✓ Tout fonctionne — prêt pour les collectors
 
 ### 4. Lancer PostgreSQL via Docker
 ```bash
@@ -196,6 +207,59 @@ dans votre pipeline. Il suffit d'insérer avec `statut_nlp='pending'`
 
 ---
 
+---
+
+## Guide de démarrage par membre
+
+### 🟢 Fatima — première connexion
+
+Tu commences directement avec Supabase, pas besoin de Docker.
+
+1. Suis les 4 étapes d'installation ci-dessus
+2. Une fois `test_infra` ✅, commence la **phase de reconnaissance** du site 
+   BAM (avant de coder quoi que ce soit) : explore le site manuellement, 
+   note les URLs, le format des fichiers (PDF/HTML), la structure des liens
+3. Documente ça dans `notebooks/bam_exploration.ipynb`
+4. Une fois la structure du site claire, code ton collector dans 
+   `collectors/bam/` en suivant le template de la section "Intégrer votre pipeline"
+5. Chaque document inséré apparaît automatiquement dans le dashboard commun
+
+### 🟡 Houda — migration depuis ta base locale
+
+Tu as déjà des données collectées en local avec Docker+PostgreSQL. On migre 
+ce que tu as vers Supabase, puis tu continues directement sur Supabase.
+
+**1. Pull le repo à jour** (contient le script de migration)
+```bash
+git pull
+```
+
+**2. Garde ton `.env` actuel pointé sur ta base locale Docker** le temps de migrer
+
+**3. Ajoute temporairement l'URL Supabase dans ton `.env` :**
+```dotenv
+DATABASE_URL=postgresql://pvf_admin:TON_MDP@localhost:5433/pvf_db
+SUPABASE_URL=postgresql://postgres.bekjvudmczejrebmhtry:MDP_SUPABASE@aws-0-eu-west-3.pooler.supabase.com:5432/postgres
+```
+
+**4. Lance la migration** (script déjà dans le repo : `storage/migrate_to_supabase.py`)
+```bash
+python -m storage.migrate_to_supabase
+```
+
+**5. Une fois la migration confirmée** (`✅ X documents sur Supabase`), 
+remplace définitivement `DATABASE_URL` par l'URL Supabase et supprime 
+`SUPABASE_URL`. Tu peux arrêter Docker :
+```bash
+docker compose down
+```
+
+**6. Vérifie que tout fonctionne sur Supabase :**
+```bash
+python -m tests.test_infra
+```
+
+Continue ton pipeline AMMC directement sur Supabase à partir de maintenant.
 ## État d'avancement
 
 | Composant | Statut | Responsable |

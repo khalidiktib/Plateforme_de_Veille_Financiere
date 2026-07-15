@@ -7,9 +7,15 @@ import os
 load_dotenv()
 
 LOCAL_URL = os.getenv("DATABASE_URL")
-SUPABASE_URL = "postgresql://postgres.bekjvudmczejrebmhtry:Fin_int%40l123456@aws-0-eu-west-3.pooler.supabase.com:5432/postgres"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 
 def migrer():
+    if not SUPABASE_URL:
+        raise ValueError(
+            "SUPABASE_URL manquant dans .env — "
+            "ajoute-le temporairement pour la migration"
+        )
+
     print("Connexion aux deux bases...")
     engine_local = create_engine(LOCAL_URL)
     engine_supabase = create_engine(SUPABASE_URL)
@@ -18,22 +24,20 @@ def migrer():
     df = pd.read_sql("SELECT * FROM documents", engine_local)
     print(f"{len(df)} documents trouvés")
 
-    # Convertir metadata dict → JSON string
+    if df.empty:
+        print("Aucune donnée à migrer.")
+        return
+
     df["metadata"] = df["metadata"].apply(
         lambda x: json.dumps(x) if isinstance(x, dict) else x
     )
-
-    # Convertir score_risque en int
-    df["score_risque"] = df["score_risque"].fillna(0).astype(int)
-    df["score_risque"] = df["score_risque"].replace(0, None)
+    if "score_risque" in df.columns:
+        df["score_risque"] = df["score_risque"].astype("Int64")
 
     print("Import sur Supabase...")
     df.to_sql(
-        "documents",
-        engine_supabase,
-        if_exists="append",
-        index=False,
-        chunksize=10
+        "documents", engine_supabase,
+        if_exists="append", index=False, chunksize=10
     )
     print("✅ Migration terminée")
 
