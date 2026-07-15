@@ -69,6 +69,42 @@ def marquer_resume(doc_id: int, resume: str):
             WHERE id = :id
         """), {"r": resume, "id": doc_id})
 
+def hash_document(source: str, url: str) -> str:
+    """
+    Hash basé sur source + URL, utilisé quand le texte n'est pas encore
+    disponible (ex: étape 1 du pipeline AMMC, insertion sans texte).
+    Ne pas confondre avec hash_texte (hash du contenu textuel).
+    """
+    return hashlib.sha256(f"{source}:{url}".encode("utf-8")).hexdigest()
+
+def get_documents_sans_texte(source: str, limite: int = 500):
+    """
+    Retourne les documents d'une source donnée dont texte_nettoye
+    est encore NULL (utilisé pour le backfill du texte, étape 2 du
+    pipeline AMMC). Retourne une liste de tuples (id, url_source, source).
+    """
+    with get_session() as s:
+        return s.execute(text("""
+            SELECT id, url_source, source
+            FROM documents
+            WHERE source = :source
+            AND texte_nettoye IS NULL
+            ORDER BY date_collecte ASC
+            LIMIT :l
+        """), {"source": source, "l": limite}).fetchall()
+
+def mettre_a_jour_texte(doc_id: int, texte_nettoye: str, langue: str):
+    """
+    Met à jour le texte nettoyé et la langue d'un document déjà
+    inséré (utilisé après extraction du PDF, étape 2 du pipeline AMMC).
+    """
+    with get_session() as s:
+        s.execute(text("""
+            UPDATE documents
+            SET texte_nettoye = :texte, langue = :langue
+            WHERE id = :id
+        """), {"texte": texte_nettoye, "langue": langue, "id": doc_id})
+        
 def stats_base():
     with get_session() as s:
         return s.execute(text("""
