@@ -1,12 +1,15 @@
 import time
 from nlp.summarizer import resumer_document
 from storage.repositories import get_pending, marquer_resume
+import socket
 
 def run_nlp_pipeline(limite: int = 50):
     print("=" * 50)
     print("Pipeline NLP — Résumé automatique")
     print("=" * 50)
     
+    verifier_connexion()
+
     docs = get_pending(limite=limite)
     print(f"{len(docs)} documents à traiter\n")
     
@@ -50,6 +53,14 @@ def run_nlp_pipeline(limite: int = 50):
                 erreurs += 1
 
     print(f"\n→ {succes} résumés générés | {erreurs} erreurs")
+
+def verifier_connexion():
+    try:
+        socket.getaddrinfo("aws-0-eu-west-3.pooler.supabase.com", 5432)
+        print("✓ Connexion Supabase accessible")
+    except socket.gaierror:
+        print("✗ Supabase inaccessible — utilise le hotspot ou un VPN")
+        exit(1)
 
 if __name__ == "__main__":
     run_nlp_pipeline()

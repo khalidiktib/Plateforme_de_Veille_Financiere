@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 from sqlalchemy import text
 from storage.db import get_session
+import socket
+
 
 st.set_page_config(
     page_title="Plateforme de Veille Financière",
@@ -10,10 +12,19 @@ st.set_page_config(
     layout="wide"
 )
 
+def verifier_connexion():
+    try:
+        socket.getaddrinfo("aws-0-eu-west-3.pooler.supabase.com", 5432)
+        print("✓ Connexion Supabase accessible")
+    except socket.gaierror:
+        print("✗ Supabase inaccessible — utilise le hotspot ou un VPN")
+        exit(1)
+
 # ── Fonctions de chargement ───────────────────────
 
 @st.cache_data(ttl=300)
 def charger_stats():
+    verifier_connexion()
     with get_session() as s:
         return s.execute(text("""
             SELECT
@@ -32,6 +43,7 @@ def charger_stats():
 
 @st.cache_data(ttl=300)
 def charger_score_jour():
+    verifier_connexion()
     with get_session() as s:
         return s.execute(text("""
             SELECT AVG(score_risque) as score_moyen
@@ -42,6 +54,7 @@ def charger_score_jour():
 
 @st.cache_data(ttl=300)
 def charger_alertes():
+    verifier_connexion()
     with get_session() as s:
         rows = s.execute(text("""
             SELECT titre, resume, date_publication, 
@@ -61,6 +74,7 @@ def charger_alertes():
 @st.cache_data(ttl=300)
 def charger_documents(source=None, classification=None, 
                       limite=20):
+    verifier_connexion()
     with get_session() as s:
         query = """
             SELECT source, type_document, titre,
@@ -87,6 +101,7 @@ def charger_documents(source=None, classification=None,
 
 @st.cache_data(ttl=300)
 def charger_repartition():
+    verifier_connexion()
     with get_session() as s:
         rows = s.execute(text("""
             SELECT classification, COUNT(*) as nb
@@ -110,7 +125,7 @@ with st.sidebar:
         "Classification",
         ["Toutes", "RISQUE", "OPPORTUNITE", "NEUTRE"]
     )
-    limite = st.slider("Nombre de documents", 10, 100, 20)
+    limite = st.slider("Nombre de documents", 10, 1000, 20)
 
 # ── KPIs ─────────────────────────────────────────
 stats = charger_stats()

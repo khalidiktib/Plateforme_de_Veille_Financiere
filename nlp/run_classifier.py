@@ -2,11 +2,22 @@ import time
 from sqlalchemy import text
 from storage.db import get_session
 from nlp.classifier import classifier_document
+import socket
+
+def verifier_connexion():
+    try:
+        socket.getaddrinfo("aws-0-eu-west-3.pooler.supabase.com", 5432)
+        print("✓ Connexion Supabase accessible")
+    except socket.gaierror:
+        print("✗ Supabase inaccessible — utilise le hotspot ou un VPN")
+        exit(1)
+
 
 def run_classifier_pipeline(limite: int = 69):
     print("=" * 50)
     print("Pipeline Classification")
     print("=" * 50)
+    verifier_connexion()
 
     with get_session() as s:
         docs = s.execute(text("""
