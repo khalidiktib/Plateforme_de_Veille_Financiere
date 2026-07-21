@@ -93,18 +93,34 @@ def get_documents_sans_texte(source: str, limite: int = 500):
             LIMIT :l
         """), {"source": source, "l": limite}).fetchall()
 
-def mettre_a_jour_texte(doc_id: int, texte_nettoye: str, langue: str):
+def mettre_a_jour_texte_et_date(doc_id: int, texte_nettoye: str, 
+                                  langue: str, date_publication: str | None):
     """
-    Met à jour le texte nettoyé et la langue d'un document déjà
-    inséré (utilisé après extraction du PDF, étape 2 du pipeline AMMC).
+    Met à jour le texte nettoyé, la langue, et optionnellement
+    la date de publication si elle a été extraite depuis le contenu.
     """
     with get_session() as s:
-        s.execute(text("""
-            UPDATE documents
-            SET texte_nettoye = :texte, langue = :langue
-            WHERE id = :id
-        """), {"texte": texte_nettoye, "langue": langue, "id": doc_id})
-        
+        if date_publication:
+            s.execute(text("""
+                UPDATE documents
+                SET texte_nettoye = :texte, 
+                    langue = :langue,
+                    date_publication = :date_pub
+                WHERE id = :id
+                AND date_publication IS NULL
+            """), {
+                "texte": texte_nettoye, 
+                "langue": langue,
+                "date_pub": date_publication,
+                "id": doc_id
+            })
+        else:
+            s.execute(text("""
+                UPDATE documents
+                SET texte_nettoye = :texte, langue = :langue
+                WHERE id = :id
+            """), {"texte": texte_nettoye, "langue": langue, "id": doc_id})
+
 def stats_base():
     with get_session() as s:
         return s.execute(text("""

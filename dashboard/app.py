@@ -112,6 +112,28 @@ def charger_repartition():
         return pd.DataFrame(rows, 
                             columns=["Classification", "Nombre"])
 
+@st.cache_data(ttl=300)
+def charger_signaux_faibles():
+    with get_session() as s:
+        rows = s.execute(text("""
+            SELECT 
+                mot_cle,
+                COUNT(*) as nb_occurrences,
+                array_agg(DISTINCT source) as sources,
+                MIN(date_publication) as premiere_date,
+                MAX(date_publication) as derniere_date
+            FROM documents,
+                jsonb_array_elements_text(mots_cles) as mot_cle
+            WHERE date_publication >= CURRENT_DATE - INTERVAL '90 days'
+            GROUP BY mot_cle
+            HAVING COUNT(*) >= 3
+            ORDER BY nb_occurrences DESC
+            LIMIT 10
+        """)).fetchall()
+        return pd.DataFrame(rows, columns=[
+            "Mot-clé", "Occurrences", "Sources", "Première apparition" ,"Dernière apparition"
+        ])
+
 # ── Sidebar ───────────────────────────────────────
 with st.sidebar:
     st.title("📊 Veille Financière")
@@ -194,6 +216,25 @@ else:
                 st.markdown(
                     f"[Voir le document]({row['URL']})"
                 )
+
+st.divider()
+st.subheader("📡 Signaux faibles détectés")
+st.caption(
+    "Mots-clés récurrents sur les 90 derniers jours, "
+    "toutes sources confondues."
+)
+df_signaux = charger_signaux_faibles()
+
+if df_signaux.empty:
+    st.info("Aucun signal faible détecté pour le moment.")
+else:
+    for _, row in df_signaux.iterrows():
+        nb_sources = len(row["Sources"])
+        badge = "🔴 Multi-sources" if nb_sources > 1 else "🟡 Source unique"
+        st.write(
+            f"**{row['Mot-clé']}** — {row['Occurrences']} mentions "
+            f"({', '.join(row['Sources'])}) {badge}"
+        )
 
 st.divider()
 

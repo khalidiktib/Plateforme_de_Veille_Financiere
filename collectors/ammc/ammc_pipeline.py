@@ -34,10 +34,17 @@ import time
 
 import requests
 
+from cleaners.date_extractor import extraire_date_depuis_texte
 from cleaners.text_cleaner import detecter_langue, nettoyer_texte, tronquer_texte
+from cleaners.http_date_extractor import extraire_date_last_modified
 from collectors.ammc.ammc_collector import HEADERS, collect_ammc_documents, save_results, transform_for_db
 from extractors.pdf_extractor import extraire_texte_pdf
-from storage.repositories import get_documents_sans_texte, inserer_document, mettre_a_jour_texte
+from storage.repositories import (
+    get_documents_sans_texte, 
+    inserer_document, 
+    mettre_a_jour_texte_et_date  # ← nouveau, remplace mettre_a_jour_texte
+)
+
 
 TAILLE_MAX_PDF = 30 * 1024 * 1024  # 30 Mo au lieu de 20
 
@@ -127,8 +134,18 @@ def enrichir_textes(limite: int = 500, pause: float = 1.0):
         texte_propre = tronquer_texte(texte_propre)
         langue = detecter_langue(texte_propre)
 
-        mettre_a_jour_texte(doc_id, texte_propre, langue)
+        # Tentative d'extraction de date depuis le contenu du PDF
+        date_extraite = extraire_date_depuis_texte(texte_propre)
+        if not date_extraite:
+            date_extraite = extraire_date_last_modified(url_source, HEADERS)
+
+        mettre_a_jour_texte_et_date(
+            doc_id, texte_propre, langue, date_extraite
+        )
         mis_a_jour += 1
+
+        if date_extraite:
+            print(f"    ✓ date récupérée depuis le texte : {date_extraite}")
 
         time.sleep(pause)  # rester correct vis-à-vis du serveur AMMC
 

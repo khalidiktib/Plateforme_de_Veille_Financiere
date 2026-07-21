@@ -11,7 +11,7 @@ puis récupérée ici.
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+load_dotenv(override=True)   # ← ajoute override=True
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 LLM_API_KEY  = os.getenv("LLM_API_KEY")
