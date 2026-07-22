@@ -4,6 +4,8 @@ import plotly.express as px
 from sqlalchemy import text
 from storage.db import get_session
 import socket
+import re
+
 
 
 st.set_page_config(
@@ -19,6 +21,12 @@ def verifier_connexion():
     except socket.gaierror:
         print("✗ Supabase inaccessible — utilise le hotspot ou un VPN")
         exit(1)
+
+def surligner(texte: str, mot: str) -> str:
+    if not mot:
+        return texte
+    pattern = re.compile(re.escape(mot), re.IGNORECASE)
+    return pattern.sub(f"**{mot}**", texte)
 
 # ── Fonctions de chargement ───────────────────────
 
@@ -73,8 +81,7 @@ def charger_alertes():
 
 @st.cache_data(ttl=300)
 def charger_documents(source=None, classification=None, 
-                      limite=20):
-    verifier_connexion()
+                      recherche=None, limite=20):
     with get_session() as s:
         query = """
             SELECT source, type_document, titre,
@@ -91,6 +98,13 @@ def charger_documents(source=None, classification=None,
         if classification and classification != "Toutes":
             query += " AND classification = :classification"
             params["classification"] = classification
+        if recherche:
+            query += """ AND (
+                resume ILIKE :recherche 
+                OR titre ILIKE :recherche
+                OR texte_nettoye ILIKE :recherche
+            )"""
+            params["recherche"] = f"%{recherche}%"
         query += " ORDER BY date_publication DESC LIMIT :l"
         params["l"] = limite
         rows = s.execute(text(query), params).fetchall()
@@ -140,6 +154,12 @@ with st.sidebar:
     st.caption("Plateforme de veille intelligente "
                "augmentée par l'IA")
     st.divider()
+    
+    recherche = st.text_input(
+        "🔍 Rechercher un mot-clé",
+        placeholder="ex: liquidité, dividende, sanction..."
+    )
+    
     source = st.selectbox(
         "Source", ["Toutes", "BAM", "AMMC", "BOURSE"]
     )
@@ -147,7 +167,7 @@ with st.sidebar:
         "Classification",
         ["Toutes", "RISQUE", "OPPORTUNITE", "NEUTRE"]
     )
-    limite = st.slider("Nombre de documents", 10, 1000, 20)
+    limite = st.slider("Nombre de documents", 10, 500, 20)
 
 # ── KPIs ─────────────────────────────────────────
 stats = charger_stats()
@@ -240,10 +260,17 @@ st.divider()
 
 # ── Fil des publications ──────────────────────────
 st.subheader("📄 Publications analysées")
-df = charger_documents(source, classification, limite)
+
+if recherche:
+    st.caption(f"Résultats pour « {recherche} »")
+
+df = charger_documents(source, classification, recherche, limite)  # point 3 ici
 
 if df.empty:
-    st.info("Aucun document pour ces filtres.")
+    if recherche:
+        st.warning(f"Aucun document ne contient « {recherche} »")
+    else:
+        st.info("Aucun document pour ces filtres.")
 else:
     for _, row in df.iterrows():
         label_map = {
@@ -261,7 +288,13 @@ else:
                     f"Classification : **{row['Classification']}** "
                     f"| Score risque : **{row['Score']}/3**"
                 )
-            st.write(row["Résumé"])
+            
+            resume_affiche = (
+                surligner(row["Résumé"], recherche) 
+                if recherche else row["Résumé"]
+            )                                    # point 5 ici
+            st.markdown(resume_affiche)
+            
             if row["URL"]:
                 st.markdown(
                     f"[Voir le document original]({row['URL']})"
