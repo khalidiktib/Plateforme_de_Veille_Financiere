@@ -1,0 +1,10 @@
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+client = Groq(api_key=os.getenv("LLM_API_KEY"))
+
+models = client.models.list()
+for model in models.data:
+    print(model.id)

@@ -1,8 +1,11 @@
 import time
-from sqlalchemy import text
-from storage.db import get_session
-from nlp.classifier import classifier_document
 import socket
+from storage.repositories import (
+    get_pending_classification,
+    sauvegarder_classification,
+    stats_classification
+)
+from nlp.classifier import classifier_document
 
 def verifier_connexion():
     try:
@@ -12,48 +15,35 @@ def verifier_connexion():
         print("✗ Supabase inaccessible — utilise le hotspot ou un VPN")
         exit(1)
 
-
-def run_classifier_pipeline(limite: int = 69):
+def run_classifier_pipeline(limite: int = 400):
     print("=" * 50)
-    print("Pipeline Classification")
+    print("Pipeline Classification & Impact (sur texte brut)")
     print("=" * 50)
     verifier_connexion()
 
-    with get_session() as s:
-        docs = s.execute(text("""
-            SELECT id, resume, source, titre
-            FROM documents
-            WHERE statut_nlp = 'done'
-            AND resume IS NOT NULL
-            AND classification IS NULL
-            LIMIT :l
-        """), {"l": limite}).fetchall()
-
+    docs = get_pending_classification(limite)
     print(f"{len(docs)} documents à classifier\n")
+    
     succes = 0
     erreurs = 0
 
     for doc in docs:
         try:
-            print(f"Classification {doc.id} — "
-                  f"{doc.titre[:45]}...", end=" ")
+            print(f"Classification {doc.id} — {doc.titre[:45]}...", end=" ")
 
-            result = classifier_document(doc.resume, doc.source)
+            # MODIFICATION ICI : On envoie le texte_nettoye complet au lieu du resume
+            texte_a_analyser = getattr(doc, 'texte_nettoye', None) or doc.resume
+            result = classifier_document(texte_a_analyser, doc.source)
 
-            with get_session() as s:
-                s.execute(text("""
-                    UPDATE documents
-                    SET classification = :c,
-                        score_risque = :s
-                    WHERE id = :id
-                """), {
-                    "c": result["classification"],
-                    "s": result["score_risque"],
-                    "id": doc.id
-                })
+            sauvegarder_classification(
+                doc_id=doc.id,
+                classification=result.get("classification", "NEUTRE"),
+                niveau_impact=int(result.get("niveau_impact", 1)),
+                justification_impact=result.get("justification_impact", "")
+            )
 
-            print(f"✓ {result['classification']} "
-                  f"(score: {result['score_risque']})")
+            print(f"✓ {result.get('classification')} "
+                  f"(Impact: {result.get('niveau_impact')}/3)")
             succes += 1
             time.sleep(1)
 
@@ -63,23 +53,12 @@ def run_classifier_pipeline(limite: int = 69):
 
     print(f"\n→ {succes} classifiés | {erreurs} erreurs")
 
-    # Résumé des résultats
-    with get_session() as s:
-        stats = s.execute(text("""
-            SELECT classification, 
-                   COUNT(*) as nb,
-                   AVG(score_risque) as score_moyen
-            FROM documents
-            WHERE classification IS NOT NULL
-            GROUP BY classification
-            ORDER BY nb DESC
-        """)).fetchall()
-
+    # Résumé des résultats via la fonction repository
+    stats = stats_classification()
     print("\n── Résultats ──────────────────")
     for row in stats:
-        print(f"{row.classification:15} "
-              f"{row.nb:3} docs | "
-              f"score moyen: {row.score_moyen:.1f}")
+        moyen = row.impact_moyen if row.impact_moyen is not None else 0.0
+        print(f"{row.classification:15} {row.total:3} docs | Impact moyen: {moyen:.1f}")
 
 if __name__ == "__main__":
     run_classifier_pipeline()

@@ -19,3 +19,8 @@ LLM_API_KEY  = os.getenv("LLM_API_KEY")
 # Vérification au démarrage
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL manquant dans .env")
+
+# Modèles Groq — répartis par quota pour éviter les conflits de rate limit
+GROQ_MODEL_BULK = "qwen/qwen3.8-27b"          # résumé, classification
+GROQ_MODEL_REASONING = "openai/gpt-oss-120b"  # synthèse hebdomadaire
+GROQ_MODEL_FALLBACK = "openai/gpt-oss-20b"    # secours léger, toutes tâches

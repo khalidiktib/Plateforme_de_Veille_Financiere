@@ -67,10 +67,10 @@ def telecharger_pdf_en_memoire(url: str) -> io.BytesIO | None:
     return io.BytesIO(response.content)
 
 
-def collecter_metadonnees():
+def collecter_metadonnees(max_pages: int | None = None):
     """Étape 1 : scraping + insertion des métadonnées (sans texte)."""
     print("=== Collecte des métadonnées AMMC ===")
-    publications_docs, dahirs_docs, all_docs = collect_ammc_documents()
+    publications_docs, dahirs_docs, all_docs = collect_ammc_documents(max_pages=max_pages)
     save_results(publications_docs, dahirs_docs, all_docs)
 
     inserted = 0
@@ -154,10 +154,9 @@ def enrichir_textes(limite: int = 500, pause: float = 1.0):
     print(f"{erreurs} erreurs de téléchargement/extraction")
 
 
-def run_ammc_pipeline():
-    collecter_metadonnees()
-    enrichir_textes()
-
+def run_ammc_pipeline(max_pages: int | None = None, limite_texte: int = 500):
+    collecter_metadonnees(max_pages=max_pages)
+    enrichir_textes(limite=limite_texte)
 
 if __name__ == "__main__":
     run_ammc_pipeline()

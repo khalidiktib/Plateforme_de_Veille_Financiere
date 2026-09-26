@@ -1,13 +1,10 @@
 # Plateforme de Veille Financière
 
-Veille financière augmentée par l'IA sur les sources institutionnelles 
-marocaines — Bank Al-Maghrib, AMMC, Bourse de Casablanca.
+Veille financière augmentée par l'IA ciblant les sources institutionnelles marocaines (Bank Al-Maghrib, AMMC, Bourse de Casablanca). Le système collecte, nettoie, résume et classifie automatiquement les documents financiers pour en extraire des signaux faibles et des tendances.
 
 ## Prérequis
 - Python 3.10+
-- Docker Desktop
-
-## Installation
+- PostgreSQL (Local ou cloud via Supabase)
 
 ## Installation
 
@@ -34,7 +31,7 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 ```
-Remplir `DATABASE_URL` avec l'URL Supabase (demander à Khalid) et `LLM_API_KEY` 
+Remplir `DATABASE_URL` avec l'URL Supabase et `LLM_API_KEY` 
 avec votre propre clé Groq gratuite.
 
 **4. Tester l'installation**
@@ -93,38 +90,9 @@ LLM_API_KEY=gsk_...
 GEMINI_API_KEY=AIza...
 ```
 
-Les clés restent sur votre machine — ne jamais les committer sur GitHub.
+Les clés restent sur votre machine — ne jamais partager.
 
 ---
-
-
-## Structure du Projet
-```text
-├── collectors/                 # Scraping par source
-│   ├── bam/                    # Bank Al-Maghrib (Fatima)
-│   ├── ammc/                   # AMMC (Houda) ✅
-│   └── bourse/                 # Bourse de Casablanca (Khalid) ✅
-├── extractors/                 # Extraction de texte (PDF, HTML) ✅
-├── cleaners/
-│   ├── text_cleaner.py         # Nettoyage, détection de langue ✅
-│   ├── deduplicator.py         # Hash de déduplication ✅
-│   ├── date_extractor.py       # Date depuis le contenu du PDF ✅
-│   └── http_date_extractor.py  # Date depuis le header HTTP Last-Modified ✅
-├── storage/                    # Connexion Supabase et requêtes ✅
-├── nlp/
-│   ├── summarizer.py           # Résumé automatique (Groq) ✅
-│   ├── run_nlp.py               
-│   ├── classifier.py           # Classification risque/opportunité (Groq) ✅
-│   ├── run_classifier.py
-│   ├── signal_extractor.py     # Extraction signaux faibles (Gemini + fallback Groq) ✅
-│   ├── run_signals.py
-│   └── backfill_dates_ammc.py  # Rattrapage des dates manquantes AMMC ✅
-├── dashboard/                   # Interface Streamlit ✅
-├── database/                    # Schéma SQL ✅
-├── config/                      # Paramètres globaux
-├── data/                        # Fichiers temporaires (ignorés par Git)
-└── tests/                       # Tests d'infrastructure ✅
-```
 
 ---
 
@@ -221,115 +189,81 @@ Deux logiques distinctes à ne pas confondre :
 Un signal est considéré comme fort quand il apparaît **dans plusieurs 
 sources** sur la même période (badge "Multi-sources" dans le dashboard).
 
----
-
-## Intégrer votre pipeline (Fatima / Houda)
-
-Votre collector doit appeler les fonctions partagées dans cet ordre :
-
-```python
-from extractors.pdf_extractor import extraire_texte_pdf
-from cleaners.text_cleaner import nettoyer_texte, detecter_langue
-from cleaners.deduplicator import calculer_hash
-from storage.repositories import document_existe, inserer_document
-
-# 1. Extraire le texte
-texte_brut = extraire_texte_pdf(chemin_pdf)
-
-# 2. Nettoyer
-texte_propre = nettoyer_texte(texte_brut)
-
-# 3. Dédupliquer
-hash_doc = calculer_hash(texte_propre)
-if document_existe(hash_doc):
-    continue  # déjà en base
-
-# 4. Insérer
-inserer_document({
-    "source": "BAM",          # ou "AMMC"
-    "type_document": "rapport",
-    "titre": "...",
-    "url_source": "...",
-    "date_publication": date,
-    "langue": detecter_langue(texte_propre),
-    "texte_nettoye": texte_propre,
-    "hash": hash_doc,
-    "metadata": json.dumps({})
-})
-```
-
-Le NLP tourne séparément — vous n'avez pas à appeler le summarizer
-dans votre pipeline. Il suffit d'insérer avec `statut_nlp='pending'`
-(valeur par défaut) et le pipeline NLP s'en charge.
 
 ---
 
----
+## Synthèse du flux d'architecture
 
-## Guide de démarrage par membre
+<p align="center">
+  <img src="images/architecture.png" alt="Architecture de la Plateforme" width="800"/>
+</p>
+## Structure du Projet
 
-### 🟢 Fatima — première connexion
-
-Tu commences directement avec Supabase, pas besoin de Docker.
-
-1. Suis les 4 étapes d'installation ci-dessus
-2. Une fois `test_infra` ✅, commence la **phase de reconnaissance** du site 
-   BAM (avant de coder quoi que ce soit) : explore le site manuellement, 
-   note les URLs, le format des fichiers (PDF/HTML), la structure des liens
-3. Documente ça dans `notebooks/bam_exploration.ipynb`
-4. Une fois la structure du site claire, code ton collector dans 
-   `collectors/bam/` en suivant le template de la section "Intégrer votre pipeline"
-5. Chaque document inséré apparaît automatiquement dans le dashboard commun
-
-### 🟡 Houda — migration depuis ta base locale
-
-Tu as déjà des données collectées en local avec Docker+PostgreSQL. On migre 
-ce que tu as vers Supabase, puis tu continues directement sur Supabase.
-
-**1. Pull le repo à jour** (contient le script de migration)
-```bash
-git pull
 ```
+Plateforme_de_Veille_Financiere
+├─ cleaners
+│  ├─ date_extractor.py
+│  ├─ deduplicator.py
+│  ├─ http_date_extractor.py
+│  ├─ text_cleaner.py
+│  └─ __init__.py
+├─ collectors
+│  ├─ ammc
+│  │  ├─ ammc_collector.py
+│  │  ├─ ammc_pipeline.py
+│  │  └─ __init__.py
+│  ├─ bam
+│  │  ├─ bam_collector.py
+│  │  ├─ bam_pipeline.py
+│  │  ├─ test_bam.py
+│  │  └─ __init__.py
+│  ├─ bourse
+│  │  ├─ bourse_collector.py
+│  │  ├─ bourse_pipeline.py
+│  │  └─ __init__.py
+│  └─ __init__.py
+├─ config
+│  ├─ settings.py
+│  └─ __init__.py
+├─ dashboard
+│  ├─ app.py
+│  └─ __init__.py
+├─ data
+├─ database
+│  ├─ add_alertes_synthese.sql
+│  ├─ add_niveau_impact.sql
+│  ├─ add_signal_info.sql
+│  └─ schema.sql
+├─ docker-compose.yml
+├─ docs
+├─ extractors
+│  ├─ html_extractor.py
+│  ├─ pdf_extractor.py
+│  └─ __init__.py
+├─ main.py
+├─ nlp
+│  ├─ backfill_dates_ammc.py
+│  ├─ classifier.py
+│  ├─ run_classifier.py
+│  ├─ run_nlp.py
+│  ├─ run_signals.py
+│  ├─ run_synthese.py
+│  ├─ script.py
+│  ├─ signal_extractor.py
+│  ├─ summarizer.py
+│  ├─ synthese_hebdo.py
+│  ├─ test_classifier.py
+│  ├─ test_signal.py
+│  └─ __init__.py
+├─ README.md
+├─ requirements.txt
+├─ storage
+│  ├─ db.py
+│  ├─ migrate_to_supabase.py
+│  ├─ repositories.py
+│  └─ __init__.py
+└─ tests
+   ├─ test_infra.py
+   └─ __init__.py
 
-**2. Garde ton `.env` actuel pointé sur ta base locale Docker** le temps de migrer
-
-**3. Ajoute temporairement l'URL Supabase dans ton `.env` :**
-```dotenv
-DATABASE_URL=postgresql://pvf_admin:TON_MDP@localhost:5433/pvf_db
-SUPABASE_URL=postgresql://postgres.bekjvudmczejrebmhtry:MDP_SUPABASE@aws-0-eu-west-3.pooler.supabase.com:5432/postgres
 ```
-
-**4. Lance la migration** (script déjà dans le repo : `storage/migrate_to_supabase.py`)
-```bash
-python -m storage.migrate_to_supabase
-```
-
-**5. Une fois la migration confirmée** (`✅ X documents sur Supabase`), 
-remplace définitivement `DATABASE_URL` par l'URL Supabase et supprime 
-`SUPABASE_URL`. Tu peux arrêter Docker :
-```bash
-docker compose down
-```
-
-**6. Vérifie que tout fonctionne sur Supabase :**
-```bash
-python -m tests.test_infra
-```
-
-Continue ton pipeline AMMC directement sur Supabase à partir de maintenant.
-## État d'avancement
-
-| Composant | Statut | Responsable |
-|---|---|---|
-| Infrastructure Supabase (partagée) | ✅ Fait | Khalid |
-| Pipeline Bourse de Casablanca | ✅ Fait | Khalid |
-| Pipeline AMMC | ✅ Fait | Houda |
-| Résumé automatique (NLP) | ✅ Fait | Khalid |
-| Classification risque / opportunité | ✅ Fait | Khalid |
-| Fiabilisation des dates (cascade titre→PDF→HTTP) | ✅ Fait | Khalid |
-| Détection de signaux faibles (mots_cles) | ✅ Fait — branche `khalid-work` | Khalid |
-| Détection multi-sources (AMMC + Bourse) | ✅ Validé | Khalid |
-| Recherche par mot-clé (dashboard) | ✅ Fait — branche `khalid-work` | Khalid |
-| Dashboard — KPIs, alertes, score du jour, signaux | ✅ Fait | Khalid |
-| Pipeline BAM | 🔄 En cours | Fatima |
-| Merge `khalid-work` → `main` | 🔄 À faire | Khalid |

@@ -168,21 +168,25 @@ def get_last_page_number(html: str) -> int:
     return max(page_numbers) if page_numbers else 0
 
 
-def collect_all_pages(base_url: str, parser) -> list[dict]:
+def collect_all_pages(base_url: str, parser, max_pages: int | None = None) -> list[dict]:
     """
-    Récupère tous les documents en parcourant toutes les pages d'une
-    section AMMC, en se basant sur le vrai nombre de pages annoncé par
-    le site (voir get_last_page_number).
+    Récupère les documents en parcourant les pages d'une section AMMC.
+    Si max_pages est fourni, s'arrête après ce nombre de pages 
+    (utile pour limiter le volume en démo/test).
     """
     first_html = fetch_page(base_url)
     documents = parser(first_html)
 
     last_page = get_last_page_number(first_html)
-    print(f"{last_page + 1} pages détectées")
+    if max_pages is not None:
+        last_page = min(last_page, max_pages - 1)
+        print(f"{last_page + 1} pages traitées (limité à {max_pages})")
+    else:
+        print(f"{last_page + 1} pages détectées")
 
     for page in range(1, last_page + 1):
         print(f"  page {page}/{last_page}")
-        time.sleep(0.5)  # rester correct vis-à-vis du serveur AMMC
+        time.sleep(0.5)
         html = fetch_page(f"{base_url}?page={page}")
         documents.extend(parser(html))
 
@@ -250,18 +254,18 @@ def parse_dahirs_lois(html: str) -> list[dict]:
     return deduplicate_documents(documents)
 
 
-def collect_ammc_documents():
-    """Collecte les documents AMMC depuis Publications + Dahirs/Lois, toutes pages confondues."""
+def collect_ammc_documents(max_pages: int | None = None):
+    """Collecte les documents AMMC. max_pages limite le nombre de 
+    pages scrapées par section (Publications, Dahirs/lois)."""
     print("Scraping Publications...")
-    publications_docs = collect_all_pages(PUBLICATIONS_URL, parse_publications)
+    publications_docs = collect_all_pages(PUBLICATIONS_URL, parse_publications, max_pages=max_pages)
     print(f"{len(publications_docs)} publications trouvées")
 
     print("Scraping Dahirs et lois...")
-    dahirs_docs = collect_all_pages(DAHIRS_URL, parse_dahirs_lois)
+    dahirs_docs = collect_all_pages(DAHIRS_URL, parse_dahirs_lois, max_pages=max_pages)
     print(f"{len(dahirs_docs)} textes réglementaires trouvés")
 
     all_docs = deduplicate_documents(publications_docs + dahirs_docs)
-
     return publications_docs, dahirs_docs, all_docs
 
 

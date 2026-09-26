@@ -4,10 +4,10 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) #Fixer le warning SSL 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning) # Fixer le warning SSL 
 
-
-BASE_MEDIA_URL = "https://media.casablanca-bourse.com/sites/default/files"
+# Nouvelle base URL suite à la migration de la Bourse
+BASE_URL = "https://www.casablanca-bourse.com/sites/default/files"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -22,18 +22,16 @@ def generer_urls_par_date(date: datetime) -> list[dict]:
     n'existe pas pour cette date (jour férié, week-end).
     """
     date_str = date.strftime("%Y%m%d")
-    year_month = date.strftime("%Y-%m")
+    year_month = date.strftime("%Y-%m") # Sert pour le nouveau dossier dynamique (ex: 2026-07)
 
     return [
         {
-            "url": f"{BASE_MEDIA_URL}/es-auto-upload/fr/"
-                   f"resume_seance_{date_str}.pdf",
+            "url": f"{BASE_URL}/editionstatistique/{year_month}/fr/resume_seance_{date_str}.pdf",
             "type_document": "resume_seance",
             "titre": f"Résumé de séance du {date.strftime('%d/%m/%Y')}"
         },
         {
-            "url": f"{BASE_MEDIA_URL}/es-auto-upload/fr/"
-                   f"Instructions_{date_str}.pdf",
+            "url": f"{BASE_URL}/editionstatistique/{year_month}/fr/Instructions_{date_str}.pdf",
             "type_document": "bulletin_cote",
             "titre": f"Bulletin de la cote du {date.strftime('%d/%m/%Y')}"
         }
@@ -49,7 +47,7 @@ def telecharger_pdf(url: str) -> bytes | None:
             url,
             headers=HEADERS,
             timeout=30,
-            verify=False #LIGNE pour ignorer l'erreur SSL
+            verify=False # LIGNE pour ignorer l'erreur SSL
         )
         if response.status_code == 200:
             content_type = response.headers.get("Content-Type", "")
@@ -78,7 +76,7 @@ def collecter_periode(nb_jours: int = 30) -> list[dict]:
         urls = generer_urls_par_date(date)
 
         for item in urls:
-            print(f"  Essai : {item['url'][-40:]}", end=" ")
+            print(f"  Essai : {item['url'][-50:]}", end=" ")
             contenu = telecharger_pdf(item["url"])
 
             if contenu:
